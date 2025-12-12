@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { WebSocketServer, type WebSocket } from 'ws'
@@ -21,9 +22,8 @@ import { RedisPubSub } from './redis/RedisPubSub.js'
 import { JwtVerifier } from './auth/JwtVerifier.js'
 
 const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 4000
-const REDIS_ENABLED = process.env['REDIS_ENABLED'] === 'true'
-const REDIS_HOST = process.env['REDIS_HOST'] ?? 'localhost'
-const REDIS_PORT = process.env['REDIS_PORT'] ? parseInt(process.env['REDIS_PORT'], 10) : 6379
+const UPSTASH_REDIS_REST_URL = process.env['UPSTASH_REDIS_REST_URL']
+const UPSTASH_REDIS_REST_TOKEN = process.env['UPSTASH_REDIS_REST_TOKEN']
 const AUTH_ENABLED = process.env['AUTH_ENABLED'] === 'true'
 const AUTH_SECRET = process.env['AUTH_SECRET'] ?? 'your-secret-key-change-in-production'
 const AUTH_ISSUER = process.env['AUTH_ISSUER']
@@ -37,14 +37,17 @@ const channelManager = new ChannelManager()
 const broadcastHandler = new BroadcastHandler(channelManager)
 const presenceManager = new PresenceManager(channelManager)
 
-// Optional Redis integration
+// Optional Redis integration (Upstash)
 let redisAdapter: RedisAdapter | null = null
 let redisPubSub: RedisPubSub | null = null
 
-if (REDIS_ENABLED) {
-  redisAdapter = new RedisAdapter({ host: REDIS_HOST, port: REDIS_PORT })
+if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
+  redisAdapter = new RedisAdapter({
+    url: UPSTASH_REDIS_REST_URL,
+    token: UPSTASH_REDIS_REST_TOKEN,
+  })
   redisPubSub = new RedisPubSub(redisAdapter, channelManager)
-  console.log(`Redis enabled: ${REDIS_HOST}:${REDIS_PORT}`)
+  console.log(`Upstash Redis enabled`)
 }
 
 // Optional JWT authentication

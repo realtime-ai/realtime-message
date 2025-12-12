@@ -1,95 +1,157 @@
-import { Redis } from 'ioredis'
+import { Redis } from '@upstash/redis'
 
 export interface RedisAdapterOptions {
-  host?: string
-  port?: number
-  password?: string
-  db?: number
+  url: string
+  token?: string
   keyPrefix?: string
 }
 
 /**
- * RedisAdapter - Manages Redis connections for pub/sub and data storage
+ * RedisAdapter - Manages Redis connections using @upstash/redis (HTTP-based)
+ *
+ * Uses Redis Streams instead of Pub/Sub for message delivery:
+ * - XADD: Publish messages to a stream
+ * - XREAD: Poll for new messages (with BLOCK simulation via polling)
+ *
+ * Benefits over Pub/Sub:
+ * - Works with HTTP-only clients (no TCP required)
+ * - Messages are persisted (can be replayed)
+ * - Supports consumer groups for scaling
  */
 export class RedisAdapter {
-  private pub: Redis
-  private sub: Redis
   private client: Redis
   private keyPrefix: string
   private subscriptions: Map<string, Set<(message: string) => void>> = new Map()
+  private lastIds: Map<string, string> = new Map()
+  private pollingIntervals: Map<string, ReturnType<typeof setInterval>> = new Map()
+  private readonly POLLING_INTERVAL_MS = 100
+  private readonly STREAM_MAX_LEN = 1000 // Trim stream to prevent unbounded growth
 
-  constructor(options: RedisAdapterOptions = {}) {
-    const host = options.host ?? 'localhost'
-    const port = options.port ?? 6379
-    const password = options.password
-    const db = options.db ?? 0
+  constructor(options: RedisAdapterOptions) {
     this.keyPrefix = options.keyPrefix ?? 'realtime:'
 
-    const redisOptions = { host, port, password, db }
+    if (options.token) {
+      this.client = new Redis({
+        url: options.url,
+        token: options.token,
+      })
+    } else {
+      this.client = Redis.fromEnv()
+    }
 
-    // Create three separate connections
-    // - pub: for publishing messages
-    // - sub: for subscribing (dedicated connection as per Redis requirement)
-    // - client: for regular commands (GET, SET, etc.)
-    this.pub = new Redis(redisOptions)
-    this.sub = new Redis(redisOptions)
-    this.client = new Redis(redisOptions)
-
-    // Setup subscription handler
-    this.sub.on('message', (channel: string, message: string) => {
-      const callbacks = this.subscriptions.get(channel)
-      if (callbacks) {
-        for (const callback of callbacks) {
-          try {
-            callback(message)
-          } catch (error) {
-            console.error('[RedisAdapter] Error in subscription callback:', error)
-          }
-        }
-      }
-    })
-
-    console.log(`[RedisAdapter] Connected to Redis at ${host}:${port}`)
+    console.log(`[RedisAdapter] Connected to Upstash Redis (using Streams)`)
   }
 
   /**
-   * Publish a message to a channel
+   * Get stream key for a channel
+   */
+  private streamKey(channel: string): string {
+    return this.keyPrefix + 'stream:' + channel
+  }
+
+  /**
+   * Publish a message to a stream (replaces pub/sub publish)
    */
   async publish(channel: string, message: string): Promise<number> {
-    const fullChannel = this.keyPrefix + channel
-    return this.pub.publish(fullChannel, message)
+    const key = this.streamKey(channel)
+    // XADD with MAXLEN to auto-trim the stream
+    await this.client.xadd(key, '*', { message }, {
+      trim: {
+        type: 'MAXLEN',
+        threshold: this.STREAM_MAX_LEN,
+        comparison: '~',
+      },
+    })
+    return 1
   }
 
   /**
-   * Subscribe to a channel
+   * Subscribe to a stream (replaces pub/sub subscribe)
+   * Uses polling to read new messages
    */
   async subscribe(channel: string, callback: (message: string) => void): Promise<void> {
-    const fullChannel = this.keyPrefix + channel
+    const key = this.streamKey(channel)
 
     // Add callback to subscriptions
-    let callbacks = this.subscriptions.get(fullChannel)
+    let callbacks = this.subscriptions.get(key)
     if (!callbacks) {
       callbacks = new Set()
-      this.subscriptions.set(fullChannel, callbacks)
-      await this.sub.subscribe(fullChannel)
+      this.subscriptions.set(key, callbacks)
+      // Start reading from the latest message ($ means only new messages)
+      this.lastIds.set(key, '$')
+
+      // Start polling for this stream
+      const interval = setInterval(async () => {
+        await this.pollStream(key)
+      }, this.POLLING_INTERVAL_MS)
+
+      this.pollingIntervals.set(key, interval)
     }
     callbacks.add(callback)
   }
 
   /**
-   * Unsubscribe from a channel
+   * Poll a stream for new messages
+   */
+  private async pollStream(key: string): Promise<void> {
+    try {
+      const lastId = this.lastIds.get(key) ?? '$'
+
+      // XREAD to get new messages
+      // API: xread(key, id, options?) or xread([keys], [ids], options?)
+      const result = await this.client.xread(
+        key,
+        lastId,
+        { count: 100 }
+      ) as Array<{ name: string; messages: Array<{ id: string; message?: string }> }> | null
+
+      if (result && result.length > 0) {
+        const streamData = result[0]
+        if (streamData && streamData.messages && streamData.messages.length > 0) {
+          const callbacks = this.subscriptions.get(key)
+
+          for (const entry of streamData.messages) {
+            // Update last ID
+            this.lastIds.set(key, entry.id)
+
+            // Deliver message to callbacks
+            if (callbacks && entry.message) {
+              for (const cb of callbacks) {
+                try {
+                  cb(entry.message)
+                } catch (error) {
+                  console.error('[RedisAdapter] Error in subscription callback:', error)
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[RedisAdapter] Polling error:', error)
+    }
+  }
+
+  /**
+   * Unsubscribe from a stream
    */
   async unsubscribe(channel: string, callback?: (message: string) => void): Promise<void> {
-    const fullChannel = this.keyPrefix + channel
-    const callbacks = this.subscriptions.get(fullChannel)
+    const key = this.streamKey(channel)
+    const callbacks = this.subscriptions.get(key)
 
     if (callbacks) {
       if (callback) {
         callbacks.delete(callback)
       }
       if (!callback || callbacks.size === 0) {
-        this.subscriptions.delete(fullChannel)
-        await this.sub.unsubscribe(fullChannel)
+        this.subscriptions.delete(key)
+        this.lastIds.delete(key)
+        // Stop polling
+        const interval = this.pollingIntervals.get(key)
+        if (interval) {
+          clearInterval(interval)
+          this.pollingIntervals.delete(key)
+        }
       }
     }
   }
@@ -116,7 +178,7 @@ export class RedisAdapter {
    * Get a value
    */
   async get(key: string): Promise<string | null> {
-    return this.client.get(this.key(key))
+    return this.client.get<string>(this.key(key))
   }
 
   /**
@@ -130,14 +192,16 @@ export class RedisAdapter {
    * Add to a set
    */
   async sadd(key: string, ...members: string[]): Promise<number> {
-    return this.client.sadd(this.key(key), ...members)
+    if (members.length === 0) return 0
+    return this.client.sadd(this.key(key), members as [string, ...string[]])
   }
 
   /**
    * Remove from a set
    */
   async srem(key: string, ...members: string[]): Promise<number> {
-    return this.client.srem(this.key(key), ...members)
+    if (members.length === 0) return 0
+    return this.client.srem(this.key(key), members as [string, ...string[]])
   }
 
   /**
@@ -151,21 +215,22 @@ export class RedisAdapter {
    * Set hash field
    */
   async hset(key: string, field: string, value: string): Promise<number> {
-    return this.client.hset(this.key(key), field, value)
+    return this.client.hset(this.key(key), { [field]: value })
   }
 
   /**
    * Get hash field
    */
   async hget(key: string, field: string): Promise<string | null> {
-    return this.client.hget(this.key(key), field)
+    return this.client.hget<string>(this.key(key), field)
   }
 
   /**
    * Get all hash fields
    */
   async hgetall(key: string): Promise<Record<string, string>> {
-    return this.client.hgetall(this.key(key))
+    const result = await this.client.hgetall<Record<string, string>>(this.key(key))
+    return result ?? {}
   }
 
   /**
@@ -176,12 +241,16 @@ export class RedisAdapter {
   }
 
   /**
-   * Close all connections
+   * Close all connections and stop polling
    */
   async close(): Promise<void> {
-    await this.pub.quit()
-    await this.sub.quit()
-    await this.client.quit()
+    // Stop all polling intervals
+    for (const interval of this.pollingIntervals.values()) {
+      clearInterval(interval)
+    }
+    this.pollingIntervals.clear()
+    this.subscriptions.clear()
+    this.lastIds.clear()
     console.log('[RedisAdapter] Connections closed')
   }
 }

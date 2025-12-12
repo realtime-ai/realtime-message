@@ -147,16 +147,23 @@ GET /health
 
 ### Environment Variables
 
+Create a `.env` file in the project root (copy from `.env.example`):
+
+```bash
+cp .env.example .env
+```
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `4000` |
-| `REDIS_ENABLED` | Enable Redis for multi-instance | `false` |
-| `REDIS_HOST` | Redis host | `localhost` |
-| `REDIS_PORT` | Redis port | `6379` |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL | - |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST Token | - |
 | `AUTH_ENABLED` | Enable JWT authentication | `false` |
 | `AUTH_SECRET` | JWT secret key | - |
 | `AUTH_ISSUER` | JWT issuer (optional) | - |
 | `AUTH_AUDIENCE` | JWT audience (optional) | - |
+
+Get `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` from your [Upstash Redis Console](https://console.upstash.com/).
 
 ### Running Tests
 
@@ -174,9 +181,10 @@ node examples/test-rest-api.mjs
 AUTH_ENABLED=true AUTH_SECRET=test-secret npm run dev:server
 node examples/test-jwt-auth.mjs
 
-# Multi-instance test (requires Redis)
-REDIS_ENABLED=true PORT=4000 npm run dev:server
-REDIS_ENABLED=true PORT=4001 npm run dev:server
+# Multi-instance test (requires Upstash Redis)
+# Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in .env
+PORT=4000 npm run dev:server
+PORT=4001 npm run dev:server
 node examples/test-redis-multi-instance.mjs
 ```
 
@@ -325,16 +333,23 @@ GET /health
 
 ### 环境变量
 
+在项目根目录创建 `.env` 文件（从 `.env.example` 复制）：
+
+```bash
+cp .env.example .env
+```
+
 | 变量 | 描述 | 默认值 |
 |------|------|--------|
 | `PORT` | 服务端口 | `4000` |
-| `REDIS_ENABLED` | 启用 Redis 多实例支持 | `false` |
-| `REDIS_HOST` | Redis 主机 | `localhost` |
-| `REDIS_PORT` | Redis 端口 | `6379` |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL | - |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST Token | - |
 | `AUTH_ENABLED` | 启用 JWT 认证 | `false` |
 | `AUTH_SECRET` | JWT 密钥 | - |
 | `AUTH_ISSUER` | JWT 签发者 (可选) | - |
 | `AUTH_AUDIENCE` | JWT 受众 (可选) | - |
+
+从 [Upstash Redis 控制台](https://console.upstash.com/) 获取 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`。
 
 ### 运行测试
 
@@ -352,9 +367,10 @@ node examples/test-rest-api.mjs
 AUTH_ENABLED=true AUTH_SECRET=test-secret npm run dev:server
 node examples/test-jwt-auth.mjs
 
-# 多实例测试 (需要 Redis)
-REDIS_ENABLED=true PORT=4000 npm run dev:server
-REDIS_ENABLED=true PORT=4001 npm run dev:server
+# 多实例测试 (需要 Upstash Redis)
+# 在 .env 中设置 UPSTASH_REDIS_REST_URL 和 UPSTASH_REDIS_REST_TOKEN
+PORT=4000 npm run dev:server
+PORT=4001 npm run dev:server
 node examples/test-redis-multi-instance.mjs
 ```
 

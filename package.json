@@ -1,0 +1,27 @@
+{
+  "name": "realtime-message",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Realtime message system with WebSocket SDK and Server",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:server": "npm run dev -w @realtime-message/server",
+    "dev:sdk": "npm run dev -w @realtime-message/sdk",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.3.3",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

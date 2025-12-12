@@ -11,13 +11,18 @@
     "dev": "npm run dev --workspaces --if-present",
     "dev:server": "npm run dev -w @realtime-message/server",
     "dev:sdk": "npm run dev -w @realtime-message/sdk",
-    "test": "npm run test --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^2.1.0",
     "typescript": "^5.3.3",
+    "vitest": "^2.1.0",
     "ws": "^8.18.3"
   },
   "engines": {

@@ -1,0 +1,22 @@
+name = "realtime-message"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Durable Objects configuration
+[durable_objects]
+bindings = [
+  { name = "REALTIME_CHANNEL", class_name = "RealtimeChannel" }
+]
+
+# Durable Objects migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["RealtimeChannel"]
+
+# Environment variables (set via wrangler secret)
+# UPSTASH_REDIS_REST_URL
+# UPSTASH_REDIS_REST_TOKEN
+# JWT_SECRET (optional)
+
+[vars]
+# Default values (override in production with secrets)

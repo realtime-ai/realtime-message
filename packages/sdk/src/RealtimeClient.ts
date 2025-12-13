@@ -15,6 +15,7 @@ import {
   type WebSocketLike,
   type LogLevel,
   type RealtimeRemoveChannelResponse,
+  type RealtimeStatistics,
 } from '@realtime-message/shared'
 import { RealtimeChannel } from './RealtimeChannel.js'
 
@@ -49,6 +50,29 @@ export class RealtimeClient {
   private openCallbacks: Array<() => void> = []
   private closeCallbacks: Array<(event: CloseEvent) => void> = []
 
+  // Statistics tracking
+  private statsStartTime: number = Date.now()
+  private heartbeatSentTime: number | null = null
+  private rttCurrent: number = 0
+  private rttSum: number = 0
+  private rttMin: number = Infinity
+  private rttMax: number = 0
+  private rttMeasurements: number = 0
+  private rttLastMeasurementTime: number | null = null
+  private connectionAttempts: number = 0
+  private connectionSuccesses: number = 0
+  private reconnectCount: number = 0
+  private connectedAt: number | null = null
+  private totalConnectedTime: number = 0
+  private heartbeatsSent: number = 0
+  private heartbeatsReceived: number = 0
+  private heartbeatTimeouts: number = 0
+  private messagesSent: number = 0
+  private messagesReceived: number = 0
+  private bytesSent: number = 0
+  private bytesReceived: number = 0
+  private totalErrors: number = 0
+
   constructor(endPoint: string, options: RealtimeClientOptions = {}) {
     this.endPoint = endPoint
     this.options = {
@@ -72,6 +96,7 @@ export class RealtimeClient {
 
     this.log('info', `Connecting to ${this.endPoint}`)
     this.closeWasClean = false
+    this.connectionAttempts++
 
     try {
       // Use custom transport or native WebSocket
@@ -80,6 +105,13 @@ export class RealtimeClient {
 
       this.conn.onopen = () => {
         this.log('info', 'Connected')
+        // Track connection statistics
+        this.connectionSuccesses++
+        if (this.reconnectTries > 0) {
+          this.reconnectCount++
+        }
+        this.connectedAt = Date.now()
+
         this.reconnectTries = 0
         this.flushSendBuffer()
         this.startHeartbeat()
@@ -90,6 +122,12 @@ export class RealtimeClient {
 
       this.conn.onclose = (event) => {
         this.log('info', `Disconnected. Code: ${event.code}, Reason: ${event.reason}`)
+        // Track connected time
+        if (this.connectedAt !== null) {
+          this.totalConnectedTime += Date.now() - this.connectedAt
+          this.connectedAt = null
+        }
+
         this.conn = null
         this.stopHeartbeat()
         // Notify channels
@@ -104,6 +142,7 @@ export class RealtimeClient {
 
       this.conn.onerror = (event) => {
         this.log('error', 'Connection error', event)
+        this.totalErrors++
         // Notify channels
         this.channels.forEach((ch) => ch.onSocketError())
         const error = new Error('WebSocket error')
@@ -115,6 +154,7 @@ export class RealtimeClient {
       }
     } catch (error) {
       this.log('error', 'Failed to connect', error)
+      this.totalErrors++
       this.scheduleReconnect()
     }
   }
@@ -251,6 +291,106 @@ export class RealtimeClient {
   }
 
   /**
+   * Get current SDK statistics
+   *
+   * Returns comprehensive statistics including RTT measurements, connection info,
+   * heartbeat stats, and message transfer metrics.
+   *
+   * @returns RealtimeStatistics object with all current statistics
+   *
+   * @example
+   * ```ts
+   * const stats = client.getStatistics()
+   * console.log(`Current RTT: ${stats.rtt.current}ms`)
+   * console.log(`Average RTT: ${stats.rtt.avg}ms`)
+   * console.log(`Messages sent: ${stats.messages.sent}`)
+   * console.log(`Total bytes sent: ${stats.messages.bytesSent}`)
+   * ```
+   */
+  getStatistics(): RealtimeStatistics {
+    const now = Date.now()
+    const currentConnectionDuration =
+      this.connectedAt !== null ? now - this.connectedAt : 0
+
+    return {
+      rtt: {
+        current: this.rttCurrent,
+        avg: this.rttMeasurements > 0 ? this.rttSum / this.rttMeasurements : 0,
+        min: this.rttMeasurements > 0 ? this.rttMin : 0,
+        max: this.rttMax,
+        measurements: this.rttMeasurements,
+        lastMeasurementTime: this.rttLastMeasurementTime,
+      },
+      connection: {
+        attempts: this.connectionAttempts,
+        successes: this.connectionSuccesses,
+        reconnects: this.reconnectCount,
+        connectedAt: this.connectedAt,
+        totalConnectedTime: this.totalConnectedTime + currentConnectionDuration,
+      },
+      heartbeat: {
+        sent: this.heartbeatsSent,
+        received: this.heartbeatsReceived,
+        timeouts: this.heartbeatTimeouts,
+      },
+      messages: {
+        sent: this.messagesSent,
+        received: this.messagesReceived,
+        bytesSent: this.bytesSent,
+        bytesReceived: this.bytesReceived,
+      },
+      sendBufferSize: this.sendBuffer.length,
+      channelCount: this.channels.length,
+      totalErrors: this.totalErrors,
+      startTime: this.statsStartTime,
+      currentConnectionDuration,
+    }
+  }
+
+  /**
+   * Reset all statistics to initial values
+   *
+   * Useful for starting fresh measurements after a period of monitoring
+   * or when beginning a new session.
+   *
+   * @example
+   * ```ts
+   * // Log current stats before reset
+   * console.log('Before reset:', client.getStatistics())
+   *
+   * // Reset all statistics
+   * client.resetStatistics()
+   *
+   * // Stats are now at initial values
+   * const fresh = client.getStatistics()
+   * console.log(fresh.messages.sent) // 0
+   * ```
+   */
+  resetStatistics(): void {
+    this.statsStartTime = Date.now()
+    this.heartbeatSentTime = null
+    this.rttCurrent = 0
+    this.rttSum = 0
+    this.rttMin = Infinity
+    this.rttMax = 0
+    this.rttMeasurements = 0
+    this.rttLastMeasurementTime = null
+    this.connectionAttempts = 0
+    this.connectionSuccesses = 0
+    this.reconnectCount = 0
+    // Note: connectedAt is not reset as it tracks current connection
+    this.totalConnectedTime = 0
+    this.heartbeatsSent = 0
+    this.heartbeatsReceived = 0
+    this.heartbeatTimeouts = 0
+    this.messagesSent = 0
+    this.messagesReceived = 0
+    this.bytesSent = 0
+    this.bytesReceived = 0
+    this.totalErrors = 0
+  }
+
+  /**
    * Set authentication token or callback
    * @param token - Static token string or async function that returns a token
    */
@@ -310,7 +450,11 @@ export class RealtimeClient {
         message.event,
         message.payload,
       ]
-      this.conn?.send(JSON.stringify(raw))
+      const data = JSON.stringify(raw)
+      // Track send statistics
+      this.messagesSent++
+      this.bytesSent += data.length
+      this.conn?.send(data)
     }
 
     if (this.isConnected()) {
@@ -342,6 +486,10 @@ export class RealtimeClient {
   }
 
   private handleMessage(data: string): void {
+    // Track receive statistics
+    this.messagesReceived++
+    this.bytesReceived += data.length
+
     try {
       const raw = JSON.parse(data) as RawMessage
       if (!Array.isArray(raw) || raw.length !== 5) {
@@ -359,12 +507,25 @@ export class RealtimeClient {
 
       this.log('debug', `Received: ${message.event} on ${message.topic}`, message.payload)
 
-      // Handle heartbeat reply
+      // Handle heartbeat reply and measure RTT
       if (
         message.topic === SYSTEM_TOPIC &&
         message.event === CHANNEL_EVENTS.reply &&
         message.seq === this.pendingHeartbeatSeq
       ) {
+        // Calculate RTT if heartbeat was sent
+        if (this.heartbeatSentTime !== null) {
+          const now = Date.now()
+          const rtt = now - this.heartbeatSentTime
+          this.rttCurrent = rtt
+          this.rttSum += rtt
+          this.rttMeasurements++
+          this.rttMin = Math.min(this.rttMin, rtt)
+          this.rttMax = Math.max(this.rttMax, rtt)
+          this.rttLastMeasurementTime = now
+          this.heartbeatSentTime = null
+        }
+        this.heartbeatsReceived++
         this.pendingHeartbeatSeq = null
         this.heartbeatCallback?.('ok')
         return
@@ -377,6 +538,7 @@ export class RealtimeClient {
       }
     } catch (error) {
       this.log('error', 'Failed to parse message', error)
+      this.totalErrors++
     }
   }
 
@@ -405,6 +567,7 @@ export class RealtimeClient {
     // Check if previous heartbeat was not acknowledged
     if (this.pendingHeartbeatSeq !== null) {
       this.log('warn', 'Heartbeat timeout - previous heartbeat not acknowledged')
+      this.heartbeatTimeouts++
       this.heartbeatCallback?.('timeout')
       // Close connection to trigger reconnect
       this.conn?.close(WS_CLOSE_NORMAL, 'heartbeat timeout')
@@ -412,6 +575,9 @@ export class RealtimeClient {
     }
 
     this.pendingHeartbeatSeq = this.makeSeq()
+    // Record send time for RTT measurement
+    this.heartbeatSentTime = Date.now()
+    this.heartbeatsSent++
     this.heartbeatCallback?.('sent')
 
     this.push({

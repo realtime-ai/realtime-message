@@ -60,4 +60,10 @@ export type {
   PresenceSyncCallback,
   PresenceJoinCallback,
   PresenceLeaveCallback,
+  // Statistics types
+  RttStatistics,
+  ConnectionStatistics,
+  HeartbeatStatistics,
+  MessageStatistics,
+  RealtimeStatistics,
 } from './types.js'

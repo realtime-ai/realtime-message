@@ -37,6 +37,13 @@ export type {
   // Remove channel response
   RealtimeRemoveChannelResponse,
   SubscribeCallback,
+
+  // Statistics types
+  RttStatistics,
+  ConnectionStatistics,
+  HeartbeatStatistics,
+  MessageStatistics,
+  RealtimeStatistics,
 } from '@realtime-message/shared'
 
 // Re-export constants

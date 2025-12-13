@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+echo "🔍 Running typecheck..."
+npm run typecheck || exit 1
+
+echo "🧪 Running tests..."
+npm run test || exit 1
+
+echo "✅ All checks passed!"

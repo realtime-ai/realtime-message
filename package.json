@@ -21,9 +21,9 @@
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/coverage-v8": "^4.0.15",
     "typescript": "^5.3.3",
-    "vitest": "^2.1.0",
+    "vitest": "^4.0.15",
     "ws": "^8.18.3"
   },
   "engines": {

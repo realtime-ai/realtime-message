@@ -16,6 +16,8 @@ export interface RedisAdapterOptions {
 export class RedisAdapter {
   private client: Redis
   private keyPrefix: string
+  private readonly STREAM_MAX_LEN = 1000 // Trim stream to prevent unbounded growth
+  private readonly STREAM_TTL_SECONDS = 3600 // Stream key expires after 1 hour of inactivity
 
   constructor(options: RedisAdapterOptions) {
     this.keyPrefix = options.keyPrefix ?? 'realtime:'
@@ -111,17 +113,32 @@ export class RedisAdapter {
 
   /**
    * Publish a message to a channel (for cross-region sync if needed)
-   * Uses Redis Streams for message persistence
+   *
+   * Uses pipeline to batch XADD and EXPIRE commands in a single request.
+   * The stream key TTL is refreshed on each publish to prevent inactive streams from persisting.
+   *
+   * @param channel - The channel name to publish to
+   * @param message - The message payload to publish
    */
   async publish(channel: string, message: string): Promise<void> {
     const streamKey = this.key(`stream:${channel}`)
-    await this.client.xadd(streamKey, '*', { message }, {
+
+    // Use pipeline to batch XADD + EXPIRE in a single HTTP request
+    const pipeline = this.client.pipeline()
+
+    // XADD with MAXLEN to auto-trim the stream
+    pipeline.xadd(streamKey, '*', { message }, {
       trim: {
         type: 'MAXLEN',
-        threshold: 1000,
+        threshold: this.STREAM_MAX_LEN,
         comparison: '~',
       },
     })
+
+    // Refresh TTL on each publish (stream expires after 1 hour of inactivity)
+    pipeline.expire(streamKey, this.STREAM_TTL_SECONDS)
+
+    await pipeline.exec()
   }
 
   /**

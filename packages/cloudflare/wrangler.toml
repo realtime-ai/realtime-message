@@ -5,7 +5,8 @@ compatibility_date = "2024-12-01"
 # Durable Objects configuration
 [durable_objects]
 bindings = [
-  { name = "REALTIME_CHANNEL", class_name = "RealtimeChannel" }
+  { name = "REALTIME_CHANNEL", class_name = "RealtimeChannel" },
+  { name = "REALTIME_GATEWAY", class_name = "RealtimeGateway" }
 ]
 
 # Durable Objects migrations
@@ -13,10 +14,37 @@ bindings = [
 tag = "v1"
 new_classes = ["RealtimeChannel"]
 
-# Environment variables (set via wrangler secret)
-# UPSTASH_REDIS_REST_URL
-# UPSTASH_REDIS_REST_TOKEN
-# JWT_SECRET (optional)
+[[migrations]]
+tag = "v2"
+new_classes = ["RealtimeGateway"]
+
+# Environment variables configuration
+# 
+# 开发环境：使用 [vars] 设置明文变量（仅用于本地开发）
+# 生产环境：使用 `wrangler secret put <NAME>` 设置加密密钥
+#
+# 设置生产环境密钥：
+#   wrangler secret put UPSTASH_REDIS_REST_URL
+#   wrangler secret put UPSTASH_REDIS_REST_TOKEN
+#   wrangler secret put JWT_SECRET
+#
+# 查看已设置的密钥：
+#   wrangler secret list
+#
+# 删除密钥：
+#   wrangler secret delete <NAME>
 
 [vars]
-# Default values (override in production with secrets)
+# 开发环境默认值（仅用于本地开发，不要提交敏感信息）
+# UPSTASH_REDIS_REST_URL = "https://your-redis.upstash.io"
+# UPSTASH_REDIS_REST_TOKEN = "your-token-here"
+# JWT_SECRET = "your-jwt-secret-here"
+
+# 不同环境的配置示例
+# [env.production]
+# name = "realtime-message-prod"
+# 
+# [env.staging]
+# name = "realtime-message-staging"
+# [env.staging.vars]
+# # 预发布环境的变量

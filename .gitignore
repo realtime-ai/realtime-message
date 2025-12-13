@@ -140,3 +140,5 @@ vite.config.ts.timestamp-*
 
 # Wrangler (Cloudflare Workers)
 .wrangler/
+
+.claude/

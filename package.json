@@ -17,11 +17,13 @@
     "test:coverage": "npm run build:shared && vitest run --coverage",
     "test:integration": "npm run build:shared && vitest run --config vitest.integration.config.ts",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
-    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^2.1.0",
+    "husky": "^9.1.7",
     "typescript": "^5.3.3",
     "vitest": "^2.1.0",
     "ws": "^8.18.3"

@@ -237,6 +237,9 @@ async function handleMessage(client: ClientConnection, msg: Message): Promise<vo
         status: 'ok',
         response: {},
       })
+
+      // Send current presence state to the newly joined client
+      presenceManager.sendState(topic, client.ws)
     } else {
       sendReply(client.ws, seq, topic, {
         status: 'error',
@@ -248,6 +251,9 @@ async function handleMessage(client: ClientConnection, msg: Message): Promise<vo
 
   // Handle channel leave
   if (event === CHANNEL_EVENTS.leave) {
+    // Untrack presence before leaving
+    presenceManager.untrack(topic, client.id)
+
     const result = channelManager.leave(topic, client.id)
 
     if (result.success) {

@@ -21,8 +21,8 @@ interface PresenceUser {
 }
 
 const COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-  '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#6366f1',
+  '#00f0ff', '#a855f7', '#ff0080', '#00ff88', '#ffee00',
+  '#ff3366', '#00a8b3', '#e879f9', '#22d3ee', '#4ade80',
 ]
 
 function getRandomColor() {
@@ -176,7 +176,7 @@ export default function App() {
               user: 'System',
               text: `${meta.user} joined the room`,
               timestamp: Date.now(),
-              color: '#6b7280',
+              color: '#00f0ff',
             },
           ])
         }
@@ -196,7 +196,7 @@ export default function App() {
               user: 'System',
               text: `${meta.user} left the room`,
               timestamp: Date.now(),
-              color: '#6b7280',
+              color: '#ff3366',
             },
           ])
         }
@@ -298,16 +298,16 @@ export default function App() {
     }, 2000)
   }, [username])
 
-  const getConnectionColor = () => {
+  const getStatusClass = () => {
     switch (connectionState) {
       case 'connected':
-        return 'bg-green-500'
+        return 'status-connected'
       case 'connecting':
-        return 'bg-yellow-500'
+        return 'status-connecting'
       case 'error':
-        return 'bg-red-500'
+        return 'status-error'
       default:
-        return 'bg-gray-500'
+        return 'status-disconnected'
     }
   }
 
@@ -316,61 +316,79 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-      <div className="container mx-auto max-w-6xl p-4 h-screen flex flex-col">
+    <div className="min-h-screen relative">
+      {/* Background effects */}
+      <div className="cyber-grid" />
+      <div className="noise-overlay" />
+      <div className="scanlines" />
+
+      {/* Main content */}
+      <div className="relative z-10 container mx-auto max-w-7xl p-4 h-screen flex flex-col">
         {/* Header */}
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Realtime Chat Demo
-          </h1>
-          <p className="text-slate-400 mt-1">
-            Powered by @realtime-message/sdk
-          </p>
+        <header className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="cyber-header text-3xl font-bold tracking-wider">
+              REALTIME NEXUS
+            </h1>
+            <p className="text-[var(--cyber-text-dim)] text-sm mt-1 tracking-wide">
+              <span className="text-[var(--cyber-cyan)]">&gt;</span> @realtime-message/sdk <span className="text-[var(--cyber-purple)]">v1.0</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right text-xs text-[var(--cyber-text-dim)]">
+              <div>STATUS</div>
+              <div className="text-[var(--cyber-cyan)] uppercase">{connectionState}</div>
+            </div>
+            <div className={`w-3 h-3 rounded-full status-dot ${getStatusClass()}`} />
+          </div>
         </header>
 
-        <div className="flex-1 flex gap-6 min-h-0">
+        <div className="flex-1 flex gap-4 min-h-0">
           {/* Left Panel - Settings & Users */}
           <aside className="w-80 flex flex-col gap-4">
             {/* Connection Panel */}
-            <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${getConnectionColor()} ${connectionState === 'connecting' ? 'animate-pulse' : ''}`}></span>
-                Connection
-              </h2>
+            <div className="cyber-panel cyber-glow rounded-lg p-5">
+              <h2 className="section-header">Connection</h2>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">Server URL</label>
+                  <label className="block text-xs text-[var(--cyber-text-dim)] mb-2 uppercase tracking-wider">
+                    Server Endpoint
+                  </label>
                   <input
                     type="text"
                     value={serverUrl}
                     onChange={(e) => setServerUrl(e.target.value)}
                     disabled={connectionState !== 'disconnected'}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
+                    className="cyber-input w-full px-3 py-2.5 rounded text-sm"
                     placeholder="ws://localhost:4000"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">Your Name</label>
+                  <label className="block text-xs text-[var(--cyber-text-dim)] mb-2 uppercase tracking-wider">
+                    User ID
+                  </label>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={isJoined}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
-                    placeholder="Enter your name"
+                    className="cyber-input w-full px-3 py-2.5 rounded text-sm"
+                    placeholder="Enter callsign..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">Room Name</label>
+                  <label className="block text-xs text-[var(--cyber-text-dim)] mb-2 uppercase tracking-wider">
+                    Channel
+                  </label>
                   <input
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
                     disabled={isJoined}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
+                    className="cyber-input w-full px-3 py-2.5 rounded text-sm"
                     placeholder="general"
                   />
                 </div>
@@ -379,16 +397,16 @@ export default function App() {
                   {connectionState === 'disconnected' ? (
                     <button
                       onClick={connect}
-                      className="flex-1 py-2 px-4 bg-purple-600 hover:bg-purple-500 rounded-lg font-medium text-sm transition-colors"
+                      className="cyber-btn cyber-btn-primary flex-1 py-2.5 px-4 rounded text-sm"
                     >
-                      Connect
+                      Initialize
                     </button>
                   ) : (
                     <button
                       onClick={disconnect}
-                      className="flex-1 py-2 px-4 bg-red-600/80 hover:bg-red-500 rounded-lg font-medium text-sm transition-colors"
+                      className="cyber-btn cyber-btn-danger flex-1 py-2.5 px-4 rounded text-sm"
                     >
-                      Disconnect
+                      Terminate
                     </button>
                   )}
 
@@ -396,18 +414,18 @@ export default function App() {
                     <button
                       onClick={joinRoom}
                       disabled={!username.trim()}
-                      className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="cyber-btn cyber-btn-success flex-1 py-2.5 px-4 rounded text-sm"
                     >
-                      Join Room
+                      Join
                     </button>
                   )}
 
                   {isJoined && (
                     <button
                       onClick={leaveRoom}
-                      className="flex-1 py-2 px-4 bg-orange-600/80 hover:bg-orange-500 rounded-lg font-medium text-sm transition-colors"
+                      className="cyber-btn cyber-btn-warning flex-1 py-2.5 px-4 rounded text-sm"
                     >
-                      Leave Room
+                      Exit
                     </button>
                   )}
                 </div>
@@ -415,43 +433,43 @@ export default function App() {
             </div>
 
             {/* Online Users Panel */}
-            <div className="flex-1 bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50 overflow-hidden flex flex-col">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Online ({onlineUsers.length})
+            <div className="flex-1 cyber-panel cyber-glow rounded-lg p-5 overflow-hidden flex flex-col">
+              <h2 className="section-header">
+                Active Users
+                <span className="ml-auto text-[var(--cyber-green)]">[{onlineUsers.length}]</span>
               </h2>
 
               <div className="flex-1 overflow-y-auto space-y-2">
                 {onlineUsers.length === 0 ? (
-                  <p className="text-slate-500 text-sm text-center py-4">
-                    {isJoined ? 'No other users online' : 'Join a room to see online users'}
-                  </p>
+                  <div className="text-center py-8">
+                    <div className="text-[var(--cyber-text-dim)] text-xs uppercase tracking-wider">
+                      {isJoined ? '// No other users detected' : '// Join channel to scan users'}
+                    </div>
+                  </div>
                 ) : (
                   onlineUsers.map((user, idx) => (
                     <div
                       key={`${user.user}-${idx}`}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-slate-700/30"
+                      className="user-card flex items-center gap-3 p-3"
                     >
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                        className="cyber-avatar w-9 h-9 text-xs text-[var(--cyber-bg)]"
                         style={{ backgroundColor: user.color }}
                       >
                         {user.user.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-sm">
+                        <p className="font-medium truncate text-sm" style={{ color: user.color }}>
                           {user.user}
                           {user.user === username && (
-                            <span className="text-slate-500 ml-1">(you)</span>
+                            <span className="text-[var(--cyber-text-dim)] ml-1 text-xs">(you)</span>
                           )}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          Joined {formatTime(user.joinedAt)}
+                        <p className="text-xs text-[var(--cyber-text-dim)]">
+                          Online since {formatTime(user.joinedAt)}
                         </p>
                       </div>
-                      <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                      <div className="w-2 h-2 rounded-full status-connected status-dot" />
                     </div>
                   ))
                 )}
@@ -460,30 +478,37 @@ export default function App() {
           </aside>
 
           {/* Chat Area */}
-          <main className="flex-1 flex flex-col bg-slate-800/50 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+          <main className="flex-1 flex flex-col cyber-panel cyber-glow-purple rounded-lg overflow-hidden">
             {/* Room Header */}
-            <div className="p-4 border-b border-slate-700/50">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <span className="text-slate-400">#</span>
-                {roomName}
-              </h2>
+            <div className="p-4 border-b border-[var(--cyber-border)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="room-badge">#{roomName}</span>
+                <span className="text-xs text-[var(--cyber-text-dim)]">
+                  {isJoined ? 'CONNECTED' : 'OFFLINE'}
+                </span>
+              </div>
               {typingUsers.size > 0 && (
-                <p className="text-sm text-slate-400 mt-1 animate-pulse">
-                  {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
-                </p>
+                <div className="flex items-center gap-2 text-sm text-[var(--cyber-cyan)]">
+                  <div className="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <span className="text-xs">
+                    {Array.from(typingUsers).join(', ')} typing...
+                  </span>
+                </div>
               )}
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center">
-                    <svg className="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <p className="text-slate-500">
-                      {isJoined ? 'No messages yet. Start the conversation!' : 'Join a room to start chatting'}
+                    <div className="text-6xl mb-4 opacity-10">⬡</div>
+                    <p className="text-[var(--cyber-text-dim)] text-sm uppercase tracking-wider">
+                      {isJoined ? '// Awaiting transmission...' : '// Join channel to begin'}
                     </p>
                   </div>
                 </div>
@@ -491,30 +516,32 @@ export default function App() {
                 messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`flex gap-3 ${msg.user === 'System' ? 'justify-center' : ''}`}
+                    className={`message-enter ${msg.user === 'System' ? 'flex justify-center' : 'flex gap-3'}`}
                   >
                     {msg.user === 'System' ? (
-                      <p className="text-sm text-slate-500 italic bg-slate-700/30 px-4 py-1.5 rounded-full">
+                      <p className="system-message">
                         {msg.text}
                       </p>
                     ) : (
                       <>
                         <div
-                          className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold"
+                          className="cyber-avatar w-9 h-9 flex-shrink-0 text-xs text-[var(--cyber-bg)]"
                           style={{ backgroundColor: msg.color }}
                         >
                           {msg.user.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-2">
+                          <div className="flex items-baseline gap-2 mb-1">
                             <span className="font-semibold text-sm" style={{ color: msg.color }}>
                               {msg.user}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-[var(--cyber-text-dim)]">
                               {formatTime(msg.timestamp)}
                             </span>
                           </div>
-                          <p className="text-slate-200 break-words mt-0.5">{msg.text}</p>
+                          <div className="message-bubble">
+                            <p className="text-[var(--cyber-text)] break-words text-sm">{msg.text}</p>
+                          </div>
                         </div>
                       </>
                     )}
@@ -525,7 +552,7 @@ export default function App() {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-slate-700/50">
+            <div className="p-4 border-t border-[var(--cyber-border)]">
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
@@ -533,24 +560,29 @@ export default function App() {
                 }}
                 className="flex gap-3"
               >
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => {
-                    setInputMessage(e.target.value)
-                    handleTyping()
-                  }}
-                  disabled={!isJoined}
-                  className="flex-1 px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
-                  placeholder={isJoined ? 'Type a message...' : 'Join a room to chat'}
-                />
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--cyber-cyan)] text-sm opacity-50">
+                    &gt;
+                  </span>
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => {
+                      setInputMessage(e.target.value)
+                      handleTyping()
+                    }}
+                    disabled={!isJoined}
+                    className="cyber-input w-full pl-8 pr-4 py-3 rounded text-sm"
+                    placeholder={isJoined ? 'Enter transmission...' : 'Join channel to transmit'}
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={!isJoined || !inputMessage.trim()}
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="cyber-btn cyber-btn-primary px-6 py-3 rounded text-sm flex items-center gap-2"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                   Send
                 </button>
@@ -560,9 +592,9 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <footer className="mt-6 text-center text-slate-500 text-sm">
+        <footer className="mt-4 tech-footer text-center">
           <p>
-            SDK Features: Connection Management | Channels | Broadcast Messaging | Presence Tracking
+            <span>[</span> BROADCAST <span>|</span> PRESENCE <span>|</span> CHANNELS <span>|</span> REALTIME <span>]</span>
           </p>
         </footer>
       </div>

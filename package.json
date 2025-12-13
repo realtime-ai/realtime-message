@@ -7,16 +7,17 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build -w @realtime-message/shared && npm run build -w @realtime-message/sdk -w @realtime-message/server -w @realtime-message/cloudflare",
+    "build:shared": "npm run build -w @realtime-message/shared",
     "dev": "npm run dev --workspaces --if-present",
     "dev:server": "npm run dev -w @realtime-message/server",
     "dev:sdk": "npm run dev -w @realtime-message/sdk",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test": "npm run build:shared && vitest run",
+    "test:watch": "npm run build:shared && vitest",
+    "test:coverage": "npm run build:shared && vitest run --coverage",
+    "test:integration": "npm run build:shared && vitest run --config vitest.integration.config.ts",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",

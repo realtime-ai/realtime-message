@@ -193,7 +193,7 @@ export class PresenceManager {
   private formatPresences(entries: PresenceEntry[]): Presence[] {
     return entries.map((e) => ({
       presence_ref: e.presenceRef,
-      ...e.meta,
+      meta: e.meta,
     }))
   }
 

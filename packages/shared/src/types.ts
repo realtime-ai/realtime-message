@@ -216,7 +216,7 @@ export interface RealtimePresenceState<T = Record<string, unknown>> {
 
 export interface Presence<T = Record<string, unknown>> {
   presence_ref: string
-  [key: string]: unknown
+  meta: T
 }
 
 /**

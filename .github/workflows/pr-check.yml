@@ -1,0 +1,92 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# 取消同一 PR 上的旧工作流运行
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # 快速检查 - 并行运行所有检查
+  quick-check:
+    name: Quick Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm run test
+        continue-on-error: true
+
+  # 检查 PR 信息
+  pr-info:
+    name: PR Info
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files_yaml: |
+            sdk:
+              - packages/sdk/**
+            server:
+              - packages/server/**
+            shared:
+              - packages/shared/**
+            docs:
+              - docs/**
+              - '**.md'
+            config:
+              - package.json
+              - tsconfig*.json
+              - .github/**
+
+      - name: Summary
+        run: |
+          echo "### 📝 Changed Packages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.changed-files.outputs.sdk_any_changed }}" == "true" ]; then
+            echo "- 📦 **SDK** changed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.changed-files.outputs.server_any_changed }}" == "true" ]; then
+            echo "- 🖥️ **Server** changed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.changed-files.outputs.shared_any_changed }}" == "true" ]; then
+            echo "- 🔗 **Shared** changed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.changed-files.outputs.docs_any_changed }}" == "true" ]; then
+            echo "- 📚 **Docs** changed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.changed-files.outputs.config_any_changed }}" == "true" ]; then
+            echo "- ⚙️ **Config** changed" >> $GITHUB_STEP_SUMMARY
+          fi

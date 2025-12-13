@@ -25,6 +25,13 @@ const COLORS = [
   '#ff3366', '#00a8b3', '#e879f9', '#22d3ee', '#4ade80',
 ]
 
+const SERVER_PRESETS = [
+  { label: 'Local (ws://localhost:4000)', value: 'ws://localhost:4000' },
+  { label: 'Local Workers (ws://localhost:8787)', value: 'ws://localhost:8787' },
+  { label: 'Production (wss://realtime-message.leeoxiang.workers.dev)', value: 'wss://realtime-message.leeoxiang.workers.dev' },
+  { label: 'Custom', value: 'custom' },
+]
+
 function getRandomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)]
 }
@@ -34,8 +41,12 @@ function generateId() {
 }
 
 export default function App() {
-  const [serverUrl, setServerUrl] = useState('ws://localhost:4000')
+  const [serverPreset, setServerPreset] = useState('ws://localhost:4000')
+  const [customServerUrl, setCustomServerUrl] = useState('')
   const [connectionState, setConnectionState] = useState<string>('disconnected')
+
+  // Compute actual server URL
+  const serverUrl = serverPreset === 'custom' ? customServerUrl : serverPreset
   const [username, setUsername] = useState('')
   const [roomName, setRoomName] = useState('general')
   const [isJoined, setIsJoined] = useState(false)
@@ -165,8 +176,9 @@ export default function App() {
       setOnlineUsers(users)
     })
 
-    channel.on('presence', { event: 'join' }, (payload: RealtimePresenceJoinPayload<PresenceUser>) => {
-      payload.newPresences.forEach((p: Presence<PresenceUser>) => {
+    channel.on('presence', { event: 'join' }, (payload) => {
+      const joinPayload = payload as unknown as RealtimePresenceJoinPayload<PresenceUser>
+      joinPayload.newPresences.forEach((p) => {
         const meta = p.meta
         if (meta?.user) {
           setMessages((prev) => [
@@ -183,9 +195,10 @@ export default function App() {
       })
     })
 
-    channel.on('presence', { event: 'leave' }, (payload: RealtimePresenceLeavePayload<PresenceUser>) => {
+    channel.on('presence', { event: 'leave' }, (payload) => {
+      const leavePayload = payload as unknown as RealtimePresenceLeavePayload<PresenceUser>
       const leftUsernames: string[] = []
-      payload.leftPresences.forEach((p: Presence<PresenceUser>) => {
+      leavePayload.leftPresences.forEach((p) => {
         const meta = p.meta
         if (meta?.user) {
           leftUsernames.push(meta.user)
@@ -355,15 +368,35 @@ export default function App() {
                   <label className="block text-xs text-[var(--cyber-text-dim)] mb-2 uppercase tracking-wider">
                     Server Endpoint
                   </label>
-                  <input
-                    type="text"
-                    value={serverUrl}
-                    onChange={(e) => setServerUrl(e.target.value)}
+                  <select
+                    value={serverPreset}
+                    onChange={(e) => setServerPreset(e.target.value)}
                     disabled={connectionState !== 'disconnected'}
-                    className="cyber-input w-full px-3 py-2.5 rounded text-sm"
-                    placeholder="ws://localhost:4000"
-                  />
+                    className="cyber-input w-full px-3 py-2.5 rounded text-sm cursor-pointer"
+                  >
+                    {SERVER_PRESETS.map((preset) => (
+                      <option key={preset.value} value={preset.value}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                {serverPreset === 'custom' && (
+                  <div>
+                    <label className="block text-xs text-[var(--cyber-text-dim)] mb-2 uppercase tracking-wider">
+                      Custom URL
+                    </label>
+                    <input
+                      type="text"
+                      value={customServerUrl}
+                      onChange={(e) => setCustomServerUrl(e.target.value)}
+                      disabled={connectionState !== 'disconnected'}
+                      className="cyber-input w-full px-3 py-2.5 rounded text-sm"
+                      placeholder="wss://your-server.com"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs text-[var(--cyber-text-dim)] mb-2 uppercase tracking-wider">
@@ -397,6 +430,7 @@ export default function App() {
                   {connectionState === 'disconnected' ? (
                     <button
                       onClick={connect}
+                      disabled={serverPreset === 'custom' && !customServerUrl.trim()}
                       className="cyber-btn cyber-btn-primary flex-1 py-2.5 px-4 rounded text-sm"
                     >
                       Initialize

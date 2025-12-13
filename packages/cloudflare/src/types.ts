@@ -1,5 +1,6 @@
 export interface Env {
   REALTIME_CHANNEL: DurableObjectNamespace
+  REALTIME_GATEWAY: DurableObjectNamespace
   UPSTASH_REDIS_REST_URL?: string
   UPSTASH_REDIS_REST_TOKEN?: string
   JWT_SECRET?: string

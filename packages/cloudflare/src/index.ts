@@ -2,16 +2,27 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Env } from './types.js'
 
-// Re-export Durable Object
+// Re-export Durable Objects
 export { RealtimeChannel } from './durable-objects/RealtimeChannel.js'
+export { RealtimeGateway } from './durable-objects/RealtimeGateway.js'
 
 const app = new Hono<{ Bindings: Env }>()
 
 // Enable CORS
 app.use('*', cors())
 
-// Health check
+// Health check (only for non-WebSocket requests)
 app.get('/', (c) => {
+  const upgradeHeader = c.req.header('Upgrade')
+
+  // Handle WebSocket upgrade - route to Gateway
+  if (upgradeHeader?.toLowerCase() === 'websocket') {
+    const id = c.env.REALTIME_GATEWAY.idFromName('default')
+    const stub = c.env.REALTIME_GATEWAY.get(id)
+    return stub.fetch(c.req.raw)
+  }
+
+  // Regular HTTP request - return health check
   return c.json({
     name: 'realtime-message',
     version: '0.0.1',

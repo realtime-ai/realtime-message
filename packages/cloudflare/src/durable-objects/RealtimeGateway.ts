@@ -33,29 +33,22 @@ interface ChannelSubscription {
     broadcast: { self: boolean; ack: boolean }
     presence: { key: string; enabled: boolean }
   }
+  /** Presence metadata for this channel (if tracked) */
+  presenceMeta?: PresenceState
 }
 
 /**
  * WebSocket attachment that survives hibernation
- * Stores clientId and all channel subscriptions
+ * Stores clientId, channel subscriptions, and presence data
  */
 interface WebSocketAttachment {
   clientId: string
   channels: Record<string, ChannelSubscription>
 }
 
-/**
- * In-memory presence state (rebuilt from messages, not persisted)
- */
-interface ChannelPresence {
-  presence: Map<string, PresenceState>
-}
-
 export class RealtimeGateway implements DurableObject {
   private state: DurableObjectState
   private env: Env
-  /** In-memory presence cache - rebuilt as needed */
-  private channelPresence: Map<string, ChannelPresence> = new Map()
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
@@ -354,6 +347,7 @@ export class RealtimeGateway implements DurableObject {
 
   /**
    * Handle presence update
+   * Stores presence data in WebSocket attachment for hibernation persistence
    */
   private async handlePresence(
     ws: WebSocket,
@@ -378,13 +372,9 @@ export class RealtimeGateway implements DurableObject {
     if (payload.event === 'track') {
       const meta = (payload.payload as { meta?: PresenceState })?.meta || {}
 
-      // Update in-memory presence cache
-      let channelPresence = this.channelPresence.get(topic)
-      if (!channelPresence) {
-        channelPresence = { presence: new Map() }
-        this.channelPresence.set(topic, channelPresence)
-      }
-      channelPresence.presence.set(presenceKey, meta)
+      // Store presence in attachment (survives hibernation)
+      subscription.presenceMeta = meta
+      ws.serializeAttachment(attachment)
 
       // Broadcast presence join to other members
       const joinMessage: Message = {
@@ -404,6 +394,10 @@ export class RealtimeGateway implements DurableObject {
       const reply = createReply(seq, topic, 'ok', {})
       ws.send(encode(reply))
     } else if (payload.event === 'untrack') {
+      // Clear presence from attachment
+      delete subscription.presenceMeta
+      ws.serializeAttachment(attachment)
+
       this.broadcastPresenceLeave(topic, presenceKey, clientId)
 
       const reply = createReply(seq, topic, 'ok', {})
@@ -412,15 +406,9 @@ export class RealtimeGateway implements DurableObject {
   }
 
   /**
-   * Broadcast presence leave and update cache
+   * Broadcast presence leave
    */
   private broadcastPresenceLeave(topic: string, presenceKey: string, excludeClientId: string): void {
-    // Update in-memory cache
-    const channelPresence = this.channelPresence.get(topic)
-    if (channelPresence) {
-      channelPresence.presence.delete(presenceKey)
-    }
-
     // Broadcast presence leave
     const leaveMessage: Message = {
       join_seq: null,
@@ -439,14 +427,30 @@ export class RealtimeGateway implements DurableObject {
 
   /**
    * Get current presence state for a channel
+   * Rebuilds from all WebSocket attachments (survives hibernation)
    */
   private getChannelPresenceState(topic: string): Record<string, Array<{ presence_ref: string; meta: PresenceState }>> {
     const presenceState: Record<string, Array<{ presence_ref: string; meta: PresenceState }>> = {}
-    const channelPresence = this.channelPresence.get(topic)
+    const webSockets = this.state.getWebSockets()
 
-    if (channelPresence) {
-      for (const [key, meta] of channelPresence.presence) {
-        presenceState[key] = [{ presence_ref: key, meta }]
+    for (const ws of webSockets) {
+      try {
+        const attachment = ws.deserializeAttachment() as WebSocketAttachment | null
+        if (!attachment) continue
+
+        const subscription = attachment.channels[topic]
+        if (!subscription || !subscription.config.presence.enabled) continue
+
+        // Only include if presence is tracked (has presenceMeta)
+        if (subscription.presenceMeta !== undefined) {
+          const presenceKey = subscription.config.presence.key || attachment.clientId
+          presenceState[presenceKey] = [{
+            presence_ref: presenceKey,
+            meta: subscription.presenceMeta,
+          }]
+        }
+      } catch {
+        // Skip invalid attachments
       }
     }
 

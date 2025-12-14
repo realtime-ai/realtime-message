@@ -25,12 +25,24 @@ const COLORS = [
   '#ff3366', '#00a8b3', '#e879f9', '#22d3ee', '#4ade80',
 ]
 
+const PRODUCTION_SERVER = 'wss://realtime-message.leeoxiang.workers.dev'
+
 const SERVER_PRESETS = [
+  { label: 'Production (wss://realtime-message.leeoxiang.workers.dev)', value: PRODUCTION_SERVER },
   { label: 'Local (ws://localhost:4000)', value: 'ws://localhost:4000' },
   { label: 'Local Workers (ws://localhost:8787)', value: 'ws://localhost:8787' },
-  { label: 'Production (wss://realtime-message.leeoxiang.workers.dev)', value: 'wss://realtime-message.leeoxiang.workers.dev' },
   { label: 'Custom', value: 'custom' },
 ]
+
+/** 根据环境自动选择默认服务器 */
+const getDefaultServer = () => {
+  // 生产环境（非 localhost）默认使用生产服务器
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return PRODUCTION_SERVER
+  }
+  // 本地开发默认使用本地服务器
+  return 'ws://localhost:4000'
+}
 
 function getRandomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)]
@@ -41,7 +53,7 @@ function generateId() {
 }
 
 export default function App() {
-  const [serverPreset, setServerPreset] = useState('ws://localhost:4000')
+  const [serverPreset, setServerPreset] = useState(getDefaultServer)
   const [customServerUrl, setCustomServerUrl] = useState('')
   const [connectionState, setConnectionState] = useState<string>('disconnected')
 

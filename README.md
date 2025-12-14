@@ -9,6 +9,8 @@
 
 A real-time messaging system with WebSocket support, featuring channels, broadcast, presence, and horizontal scaling via Redis.
 
+🚀 **Live Demo**: [https://message.realtimeai.dev/](https://message.realtimeai.dev/)
+
 ### Features
 
 - **WebSocket Communication** - Real-time bidirectional communication
@@ -194,6 +196,8 @@ node examples/test-redis-multi-instance.mjs
 ## 中文
 
 一个支持 WebSocket 的实时消息系统，具有频道、广播、在线状态追踪功能，并支持通过 Redis 进行水平扩展。
+
+🚀 **在线体验**: [https://message.realtimeai.dev/](https://message.realtimeai.dev/)
 
 ### 功能特性
 

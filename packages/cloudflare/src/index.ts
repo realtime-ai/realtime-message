@@ -11,7 +11,18 @@ const app = new Hono<{ Bindings: Env }>()
 // Enable CORS
 app.use('*', cors())
 
-// Health check (only for non-WebSocket requests)
+// Health check endpoint
+app.get('/health', (c) => {
+  return c.json({
+    status: 'ok',
+    name: 'realtime-message',
+    version: '0.0.1',
+    runtime: 'cloudflare-workers',
+    timestamp: new Date().toISOString(),
+  })
+})
+
+// Root endpoint (only for non-WebSocket requests)
 app.get('/', (c) => {
   const upgradeHeader = c.req.header('Upgrade')
 

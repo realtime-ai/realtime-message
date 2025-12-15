@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@realtime-message/shared": "*"
+    "@realtime-message/shared": "^0.0.1"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

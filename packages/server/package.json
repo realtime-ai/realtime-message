@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.7",
-    "@realtime-message/shared": "*",
+    "@realtime-message/shared": "^0.0.1",
     "@upstash/redis": "^1.35.7",
     "dotenv": "^17.2.3",
     "hono": "^4.6.0",

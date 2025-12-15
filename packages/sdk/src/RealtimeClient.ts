@@ -19,7 +19,69 @@ import {
 import { RealtimeChannel } from './RealtimeChannel.js'
 
 /**
+ * 检测当前是否在 Node.js 环境中运行
+ *
+ * @returns true 如果在 Node.js 环境中，false 如果在浏览器环境中
+ */
+function isNodeEnvironment(): boolean {
+  return typeof window === 'undefined' && typeof process !== 'undefined' && process.versions?.node != null
+}
+
+/**
+ * 获取 WebSocket 实现
+ * 在浏览器中使用原生 WebSocket，在 Node.js 中尝试加载 ws 库
+ *
+ * @param customTransport - 用户提供的自定义 WebSocket 实现
+ * @returns WebSocket 构造函数
+ */
+async function getWebSocketImpl(customTransport?: new (url: string) => WebSocketLike): Promise<new (url: string) => WebSocketLike> {
+  // 如果用户提供了自定义 transport，直接使用
+  if (customTransport) {
+    return customTransport
+  }
+
+  // 浏览器环境，使用原生 WebSocket
+  if (!isNodeEnvironment()) {
+    return WebSocket as unknown as new (url: string) => WebSocketLike
+  }
+
+  // Node.js 环境，检查是否有全局 WebSocket（如 Node 22+）
+  if (typeof globalThis.WebSocket !== 'undefined') {
+    return globalThis.WebSocket as unknown as new (url: string) => WebSocketLike
+  }
+
+  // Node.js 环境，尝试动态导入 ws 库
+  try {
+    const ws = await import('ws')
+    return ws.default as unknown as new (url: string) => WebSocketLike
+  } catch {
+    throw new Error(
+      'WebSocket is not available. In Node.js environment, please install the "ws" package: npm install ws'
+    )
+  }
+}
+
+/**
  * RealtimeClient - WebSocket connection manager
+ *
+ * 支持浏览器和 Node.js 环境：
+ * - 浏览器：自动使用原生 WebSocket
+ * - Node.js 22+：自动使用内置 WebSocket
+ * - Node.js 旧版本：需要安装 ws 库 (npm install ws)
+ *
+ * @example
+ * ```ts
+ * // 浏览器或 Node.js 22+ 中直接使用
+ * const client = new RealtimeClient('wss://example.com/realtime')
+ *
+ * // Node.js 旧版本中使用（需要安装 ws）
+ * const client = new RealtimeClient('wss://example.com/realtime')
+ * // 或手动传入 ws
+ * import WebSocket from 'ws'
+ * const client = new RealtimeClient('wss://example.com/realtime', {
+ *   transport: WebSocket as any
+ * })
+ * ```
  */
 export class RealtimeClient {
   private endPoint: string
@@ -49,6 +111,9 @@ export class RealtimeClient {
   private openCallbacks: Array<() => void> = []
   private closeCallbacks: Array<(event: CloseEvent) => void> = []
 
+  // WebSocket implementation cache
+  private wsImpl: (new (url: string) => WebSocketLike) | null = null
+
   constructor(endPoint: string, options: RealtimeClientOptions = {}) {
     this.endPoint = endPoint
     this.options = {
@@ -64,8 +129,15 @@ export class RealtimeClient {
 
   /**
    * Establish WebSocket connection
+   *
+   * 自动检测环境并使用合适的 WebSocket 实现：
+   * - 浏览器：使用原生 WebSocket
+   * - Node.js 22+：使用内置 WebSocket
+   * - Node.js 旧版本：自动加载 ws 库
+   *
+   * @returns Promise 在连接建立后 resolve（注意：不等待连接成功，只等待 WebSocket 初始化）
    */
-  connect(): void {
+  async connect(): Promise<void> {
     if (this.conn) {
       return
     }
@@ -74,9 +146,12 @@ export class RealtimeClient {
     this.closeWasClean = false
 
     try {
-      // Use custom transport or native WebSocket
-      const WebSocketImpl = this.options.transport ?? WebSocket
-      this.conn = new WebSocketImpl(this.endPoint)
+      // 获取 WebSocket 实现（缓存以供重连使用）
+      if (!this.wsImpl) {
+        this.wsImpl = await getWebSocketImpl(this.options.transport as (new (url: string) => WebSocketLike) | undefined)
+      }
+
+      this.conn = new this.wsImpl(this.endPoint)
 
       this.conn.onopen = () => {
         this.log('info', 'Connected')
@@ -439,7 +514,9 @@ export class RealtimeClient {
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTries += 1
-      this.connect()
+      // connect() 是异步的，但这里不需要等待它完成
+      // 错误会在 connect() 内部处理并触发下一次重连
+      void this.connect()
     }, delay)
   }
 

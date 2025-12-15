@@ -9,7 +9,7 @@ packages/
 ├── shared/     # 共享类型、常量、序列化工具
 ├── sdk/        # 客户端 SDK (RealtimeClient, RealtimeChannel, RealtimePresence)
 ├── server/     # Node.js 服务端 (Hono + ws)
-└── cloudflare/ # Cloudflare Workers 部署 (Durable Objects)
+└── workers/    # Cloudflare Workers 部署 (Durable Objects)
 ```
 
 ## 常用命令

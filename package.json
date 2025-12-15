@@ -7,12 +7,12 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @realtime-message/shared && npm run build -w @realtime-message/sdk -w @realtime-message/server -w @realtime-message/cloudflare",
+    "build": "npm run build -w @realtime-message/shared && npm run build -w @realtime-message/sdk -w @realtime-message/server -w @realtime-message/workers",
     "build:shared": "npm run build -w @realtime-message/shared",
     "dev": "npm run dev --workspaces --if-present",
     "dev:server": "npm run dev -w @realtime-message/server",
     "dev:sdk": "npm run dev -w @realtime-message/sdk",
-    "dev:workers": "npm run dev -w @realtime-message/cloudflare",
+    "dev:workers": "npm run dev -w @realtime-message/workers",
     "dev:example": "cd examples/chat-demo && npm install && npm run dev",
     "test": "npm run build:shared && vitest run",
     "test:watch": "npm run build:shared && vitest",

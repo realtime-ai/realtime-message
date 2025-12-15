@@ -1,5 +1,5 @@
 {
-  "name": "@realtime-message/cloudflare",
+  "name": "@realtime-message/workers",
   "version": "0.0.1",
   "description": "Realtime message server for Cloudflare Workers with Durable Objects",
   "type": "module",
@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@realtime-message/shared": "*",
+    "@realtime-message/shared": "^0.0.1",
     "@upstash/redis": "^1.35.7",
     "hono": "^4.6.0",
     "jose": "^6.1.3"
